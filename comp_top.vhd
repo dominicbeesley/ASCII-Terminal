@@ -59,7 +59,7 @@ architecture rtl of comp_top is
 
 -- Main Clocks
 signal clk100       :   std_logic;
-signal clk25        :   std_logic;
+signal clk50        :   std_logic;
 signal cpu_clken    :   std_logic;
 signal clken_counter:	std_logic_vector(7 downto 0);
 
@@ -121,26 +121,26 @@ U1: entity work.Gowin_rPLL
 
 U2: entity work.Gowin_CLKDIV
     port map (
-        clkout => clk25,  -- 100.286/4 = 25.0715 Mhz (VGA pixel clock is 25.125 Mhz)
+        clkout => clk50,  -- 100.286/4 = 25.0715 Mhz (VGA pixel clock is 25.125 Mhz)
         hclkin => clk100,
         resetn => '1'
     );
 
 -- 25Mhz master clock
-process(clk25)
+process(clk50)
 begin
-    if rising_edge(clk25) then
+    if rising_edge(clk50) then
 		clken_counter <= clken_counter + 1;
     end if;
 end process;
 
-cpu_clken <= clken_counter(0) and clken_counter(1) and clken_counter(2) and clken_counter(3); -- 1.56 Mhz
-crg_clken <= '1';--clken_counter(0) and clken_counter(1); -- Must be close to 25.125 Mhz for screen pixel clock and timings
+cpu_clken <= clken_counter(0) and clken_counter(1) and clken_counter(2) and clken_counter(3); -- 3.125 Mhz
+crg_clken <= clken_counter(0);
 
 -- Main system ROM
 U3: entity work.ROM port map
     (
-        clk => clk25,
+        clk => clk50,
         addr => cpu_a(13 downto 0),
         data => rom_data
     );
@@ -148,7 +148,7 @@ U3: entity work.ROM port map
 -- Main system RAM
 U4: entity work.RAM port map
     (
-        clk => clk25,
+        clk => clk50,
         we => ram_rw,
         addr => cpu_a(13 downto 0),
         datain => cpu_do,
@@ -159,7 +159,7 @@ U4: entity work.RAM port map
 U5: entity work.r65c02 port map
     (
         reset    => reset_n and btn1,
-        clk      => clk25,
+        clk      => clk50,
         enable   => cpu_clken,
         nmi_n    => cpu_nmi_n,
         irq_n    => cpu_irq_n,
@@ -180,7 +180,7 @@ cpu_irq_n <= '1';
 
 U6: entity work.UART_RX port map
     (
-    clk         => clk25,
+    clk         => clk50,
     rx_bit      => rxd,
     rx_valid    => urx_valid,
     rx_byte     => rx_byte
@@ -188,7 +188,7 @@ U6: entity work.UART_RX port map
 
 U7: entity work.ascii_term port map
     (
-        clk         => clk25,
+        clk         => clk50,
         reset_n     => reset_n,
         cpu_a       => cpu_a(15 downto 0),
         cpu_do      => cpu_do,
@@ -220,10 +220,11 @@ cpu_di <= "0000000" & keyb_valid when cpu_a = x"fce1" and cpu_r_nw = '1' else --
           ram_data when ram_enable = '1' else
           x"ff";
 
+
 -- Control LEDs by writing to port FFE2
-process(clk25)
+process(clk50)
 begin
-    if rising_edge(clk25) then
+    if rising_edge(clk50) then
         if reset_n = '0' then
             led <= "111111";
         elsif cpu_a = x"ffe2" and cpu_r_nw = '0' then
@@ -233,9 +234,9 @@ begin
 end process;
 
 -- Ensure UART receive "valid state" is only valid again after the CPU has read a valid byte
-process(clk25)
+process(clk50)
 begin
-    if rising_edge(clk25) then
+    if rising_edge(clk50) then
         if reset_n = '0' then
             rx_valid <= '0';
         elsif urx_valid = '1' then
@@ -247,9 +248,9 @@ begin
 end process;
 
 -- Reset
-process(clk25)
+process(clk50)
 begin
-    if rising_edge(clk25) then
+    if rising_edge(clk50) then
         if (reset_counter(reset_counter'high) = '0') then
             reset_counter <= reset_counter + 1;
         end if;

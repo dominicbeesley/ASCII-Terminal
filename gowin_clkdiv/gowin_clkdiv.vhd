@@ -42,7 +42,7 @@ begin
     clkdiv_inst: CLKDIV
         generic map (
             GSREN => "false",
-            DIV_MODE => "4"
+            DIV_MODE => "2"
         )
         port map (
             CLKOUT => clkout,
