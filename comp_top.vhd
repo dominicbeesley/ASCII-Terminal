@@ -91,7 +91,8 @@ signal cpu_vp_n     :	std_logic;
 signal cpu_vda      :	std_logic;
 signal cpu_vpa      :	std_logic;
 signal cpu_a        :	std_logic_vector(23 downto 0);
-signal cpu_di       :	std_logic_vector(7 downto 0);
+signal i_cpu_di     :	std_logic_vector(7 downto 0);
+signal r_cpu_di     :   std_logic_vector(7 downto 0);
 signal cpu_do       :	std_logic_vector(7 downto 0);
 signal cpu_do_us    :	unsigned(7 downto 0);
 signal cpu_a_us     :	unsigned(15 downto 0);
@@ -163,7 +164,7 @@ U5: entity work.r65c02 port map
         enable   => cpu_clken,
         nmi_n    => cpu_nmi_n,
         irq_n    => cpu_irq_n,
-        di       => unsigned(cpu_di),
+        di       => unsigned(r_cpu_di),
         do       => cpu_do_us,
         addr     => cpu_a_us,
         nwe      => cpu_r_nw,
@@ -211,7 +212,7 @@ rom_enable <= '1' when cpu_a(15) = '1' and cpu_a(14) = '1' and cpu_r_nw = '1' el
 ram_enable <= '1' when cpu_a(15) = '0' and cpu_a(14) = '0' else '0';
 ram_rw <= '1' when ram_enable = '1' and cpu_r_nw = '0' and cpu_clken = '1' else '0';
 
-cpu_di <= "0000000" & keyb_valid when cpu_a = x"fce1" and cpu_r_nw = '1' else -- CPU read keyboard status
+i_cpu_di <= "0000000" & keyb_valid when cpu_a = x"fce1" and cpu_r_nw = '1' else -- CPU read keyboard status
           ps2_ascii when cpu_a = x"fce0" and cpu_r_nw = '1' else -- CPU read ascii value of key pressed
           "0000000" & rx_valid when cpu_a = x"fce3" and cpu_r_nw = '1' else -- CPU read UART status
           rx_byte when cpu_a = x"fce2" and cpu_r_nw = '1' else -- CPU read ascii value over UART of key pressed
@@ -220,6 +221,13 @@ cpu_di <= "0000000" & keyb_valid when cpu_a = x"fce1" and cpu_r_nw = '1' else --
           ram_data when ram_enable = '1' else
           x"ff";
 
+
+p_reg_di:process(clk50)
+begin
+    if rising_edge(clk50) then
+        r_cpu_di <= i_cpu_di;
+    end if;
+end process;
 
 -- Control LEDs by writing to port FFE2
 process(clk50)
